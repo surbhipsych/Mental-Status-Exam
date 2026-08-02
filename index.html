@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mental Status Examination</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(ellipse 80% 70% at 50% 85%, #162035 0%, #08101e 65%);
+      font-family: 'Nunito', sans-serif;
+      user-select: none;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Ambient floor light */
+    body::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 200px;
+      background: radial-gradient(ellipse at 50% 100%, rgba(30,55,100,0.4) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Glow burst */
+    #glow-burst {
+      position: absolute;
+      bottom: 14%;
+      left: 50%;
+      transform: translate(-50%, 50%) scale(0);
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,185,55,0.28) 0%, rgba(255,130,20,0.12) 45%, transparent 70%);
+      pointer-events: none;
+      opacity: 0;
+      transition: none;
+    }
+    #glow-burst.active {
+      animation: glowBurst 2.4s ease-out forwards;
+    }
+    @keyframes glowBurst {
+      0%   { opacity: 0; transform: translate(-50%, 50%) scale(0.4); }
+      20%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, 50%) scale(1.7); }
+    }
+
+    /* Title */
+    #title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.05rem;
+      font-weight: 300;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(140,175,220,0.6);
+      text-align: center;
+      margin-bottom: 14px;
+      z-index: 10;
+    }
+
+    /* Scene wrapper */
+    #scene {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: clamp(320px, 90vw, 620px);
+      z-index: 10;
+    }
+
+    /* Distortion tags grid */
+    #tags-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .tag-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      padding: 5px 13px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1.5px solid rgba(80,120,190,0.35);
+      background: rgba(12,22,40,0.7);
+      color: rgba(160,200,245,0.85);
+      backdrop-filter: blur(10px);
+      transition: border-color 0.2s, background 0.2s, color 0.2s, transform 0.15s, box-shadow 0.2s;
+      letter-spacing: 0.025em;
+      line-height: 1;
+      opacity: 0;
+      transform: translateY(-12px);
+      animation: tagIn 0.35s ease-out forwards;
+    }
+    .tag:hover {
+      transform: scale(1.06) translateY(-2px);
+    }
+    .tag:active {
+      transform: scale(0.96);
+    }
+    .tag.selected {
+      border-color: rgba(190,150,255,0.9);
+      background: rgba(110,70,180,0.35);
+      color: #d8c0ff;
+      font-weight: 700;
+      box-shadow: 0 0 14px rgba(120,80,220,0.4), inset 0 0 8px rgba(120,80,220,0.15);
+    }
+    @keyframes tagIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Connector dots */
+    #dots {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+    }
+
+    /* Figure area */
+    #figure-area {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      height: 310px;
+      width: 100%;
+    }
+
+    /* Figure wrapper */
+    #figure-wrap {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      cursor: pointer;
+      transition: filter 0.4s ease;
+      filter: drop-shadow(0 6px 20px rgba(0,0,0,0.6));
+    }
+    #figure-wrap:active {
+      transform: translateX(-50%) scale(0.97);
+    }
+    #figure-wrap.glowing {
+      filter:
+        drop-shadow(0 0 18px rgba(255,185,55,0.95))
+        drop-shadow(0 0 40px rgba(255,140,20,0.7))
+        drop-shadow(0 0 80px rgba(255,100,0,0.35));
+    }
+
+    /* SVG mouth path — toggled by JS */
+    #mouth { transition: d 0.1s; }
+
+    /* Speech bubble */
+    #bubble {
+      position: absolute;
+      right: 4px;
+      bottom: 170px;
+      width: 230px;
+      background: #f5efea;
+      border-radius: 18px 18px 4px 18px;
+      padding: 14px 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+      z-index: 20;
+      opacity: 0;
+      transform: scale(0.85) translateX(10px);
+      transition: opacity 0.25s, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+    }
+    #bubble.visible {
+      opacity: 1;
+      transform: scale(1) translateX(0);
+      pointer-events: auto;
+    }
+    #bubble-tail {
+      position: absolute;
+      bottom: -13px;
+      left: 18px;
+      width: 0;
+      height: 0;
+      border-left: 0px solid transparent;
+      border-right: 16px solid transparent;
+      border-top: 14px solid #f5efea;
+    }
+    #bubble-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: #7b5ea7;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+    #bubble-text {
+      font-size: 0.78rem;
+      color: #2a1e30;
+      line-height: 1.6;
+      min-height: 90px;
+      font-weight: 400;
+    }
+    #cursor {
+      display: inline-block;
+      width: 2px;
+      height: 0.85em;
+      background: #7b5ea7;
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: cursorBlink 0.6s step-end infinite;
+    }
+    @keyframes cursorBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Hint text */
+    #hint {
+      color: rgba(100,140,190,0.35);
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      margin-top: 6px;
+      text-transform: uppercase;
+      z-index: 10;
+      transition: opacity 0.4s;
+    }
+    #hint.hidden { opacity: 0; }
+
+    /* Glow ring inside SVG */
+    #glow-ring {
+      display: none;
+    }
+    #figure-wrap.glowing #glow-ring {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="glow-burst"></div>
+
+  <p id="title">Mental Status Examination</p>
+
+  <div id="scene">
+
+    <div id="tags-container">
+      <div class="tag-row" id="row-0"></div>
+      <div class="tag-row" id="row-1"></div>
+      <div class="tag-row" id="row-2"></div>
+    </div>
+
+    <div id="dots">
+      <div class="dot" style="background:rgba(100,140,200,0.35)"></div>
+      <div class="dot" style="background:rgba(100,140,200,0.25)"></div>
+      <div class="dot" style="background:rgba(100,140,200,0.15)"></div>
+    </div>
+
+    <div id="figure-area">
+
+      <!-- Speech bubble -->
+      <div id="bubble">
+        <p id="bubble-label"></p>
+        <p id="bubble-text"></p>
+        <div id="bubble-tail"></div>
+      </div>
+
+      <!-- SVG Figure -->
+      <div id="figure-wrap">
+        <svg id="client-svg" viewBox="0 0 200 300" width="190" height="285">
+
+          <!-- Chair back -->
+          <rect x="58" y="130" width="84" height="108" rx="10" fill="#182432"/>
+          <rect x="63" y="136" width="74" height="4" rx="2" fill="#1f3045"/>
+          <rect x="63" y="143" width="74" height="2" rx="1" fill="#1f3045"/>
+
+          <!-- Armrests -->
+          <rect x="40" y="162" width="22" height="46" rx="7" fill="#1a2d40"/>
+          <rect x="138" y="162" width="22" height="46" rx="7" fill="#1a2d40"/>
+
+          <!-- Chair seat -->
+          <rect x="46" y="200" width="108" height="20" rx="6" fill="#182432"/>
+
+          <!-- Chair legs -->
+          <rect x="56" y="217" width="11" height="73" rx="4" fill="#111c28"/>
+          <rect x="133" y="217" width="11" height="73" rx="4" fill="#111c28"/>
+          <rect x="52" y="285" width="22" height="8" rx="3" fill="#111c28"/>
+          <rect x="126" y="285" width="22" height="8" rx="3" fill="#111c28"/>
+
+          <!-- Legs -->
+          <path d="M 82 212 Q 80 242 77 272" stroke="#243650" stroke-width="20" fill="none" stroke-linecap="round"/>
+          <path d="M 118 212 Q 120 242 123 272" stroke="#243650" stroke-width="20" fill="none" stroke-linecap="round"/>
+
+          <!-- Shoes -->
+          <ellipse cx="75" cy="274" rx="16" ry="9" fill="#141824"/>
+          <ellipse cx="125" cy="274" rx="16" ry="9" fill="#141824"/>
+
+          <!-- Torso -->
+          <rect x="68" y="150" width="64" height="58" rx="14" fill="#3d6a8f"/>
+          <path d="M 92 150 L 100 165 L 108 150" stroke="#2e5070" stroke-width="1.5" fill="none"/>
+
+          <!-- Neck -->
+          <rect x="88" y="143" width="24" height="16" rx="5" fill="#e0b890"/>
+
+          <!-- Arms -->
+          <path d="M 74 165 Q 57 182 52 198" stroke="#e0b890" stroke-width="16" fill="none" stroke-linecap="round"/>
+          <path d="M 52 198 Q 49 208 56 210" stroke="#e0b890" stroke-width="11" fill="none" stroke-linecap="round"/>
+          <path d="M 126 165 Q 143 182 148 198" stroke="#e0b890" stroke-width="16" fill="none" stroke-linecap="round"/>
+          <path d="M 148 198 Q 151 208 144 210" stroke="#e0b890" stroke-width="11" fill="none" stroke-linecap="round"/>
+
+          <!-- Head -->
+          <circle cx="100" cy="104" r="40" fill="#e0b890"/>
+
+          <!-- Ears -->
+          <ellipse cx="60" cy="108" rx="8" ry="10" fill="#d0a880"/>
+          <ellipse cx="140" cy="108" rx="8" ry="10" fill="#d0a880"/>
+          <ellipse cx="60" cy="108" rx="4" ry="6" fill="#c09870"/>
+          <ellipse cx="140" cy="108" rx="4" ry="6" fill="#c09870"/>
+
+          <!-- Hair -->
+          <path d="M 60 98 Q 63 65 100 62 Q 137 65 140 98 Q 132 68 100 66 Q 68 68 60 98 Z" fill="#3a2418"/>
+          <ellipse cx="100" cy="66" rx="38" ry="15" fill="#3a2418"/>
+          <path d="M 60 98 Q 58 85 62 75 Q 66 65 75 62" stroke="#3a2418" stroke-width="3" fill="none"/>
+          <path d="M 140 98 Q 142 85 138 75 Q 134 65 125 62" stroke="#3a2418" stroke-width="3" fill="none"/>
+
+          <!-- Eyes -->
+          <ellipse cx="85" cy="103" rx="7" ry="8" fill="white"/>
+          <ellipse cx="115" cy="103" rx="7" ry="8" fill="white"/>
+          <circle cx="86" cy="104" r="5" fill="#3a5080"/>
+          <circle cx="116" cy="104" r="5" fill="#3a5080"/>
+          <circle cx="86.5" cy="104.5" r="3" fill="#12100e"/>
+          <circle cx="116.5" cy="104.5" r="3" fill="#12100e"/>
+          <circle cx="87.5" cy="103" r="1.5" fill="white"/>
+          <circle cx="117.5" cy="103" r="1.5" fill="white"/>
+
+          <!-- Eyebrows -->
+          <path d="M 77 92 Q 85 88 93 92" stroke="#3a2418" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M 107 92 Q 115 88 123 92" stroke="#3a2418" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+          <!-- Nose -->
+          <path d="M 97 110 Q 95 118 100 119 Q 105 118 103 110" stroke="#c09070" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <circle cx="96" cy="118" r="1.5" fill="rgba(0,0,0,0.08)"/>
+          <circle cx="104" cy="118" r="1.5" fill="rgba(0,0,0,0.08)"/>
+
+          <!-- Cheeks -->
+          <circle cx="78" cy="115" r="9" fill="rgba(210,90,70,0.12)"/>
+          <circle cx="122" cy="115" r="9" fill="rgba(210,90,70,0.12)"/>
+
+          <!-- Mouth (animated via JS) -->
+          <path id="mouth" d="M 90 115 Q 100 120 110 115"
+            stroke="#8b4a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <ellipse id="mouth-inner" cx="100" cy="122" rx="7" ry="4" fill="#5a2a1a" opacity="0" />
+
+          <!-- Glow ring (shown when glowing) -->
+          <circle id="glow-ring" cx="100" cy="104" r="44"
+            fill="none" stroke="rgba(255,185,60,0.6)" stroke-width="6">
+            <animate attributeName="r" values="44;56;44" dur="1.2s" repeatCount="indefinite"/>
+            <animate attributeName="stroke-opacity" values="0.6;0.1;0.6" dur="1.2s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+      </div>
+
+    </div><!-- /figure-area -->
+  </div><!-- /scene -->
+
+  <p id="hint">touch the figure &middot; select an MSE domain</p>
+
+  <script>
+    const MSE_ITEMS = [
+      {id:1,name:"Appearance",definition:"Observe grooming, hygiene, clothing, posture, eye contact, and apparent age."},
+      {id:2,name:"Behavior",definition:"Assess psychomotor activity, cooperation, agitation, retardation, and abnormal movements."},
+      {id:3,name:"Speech",definition:"Evaluate rate, volume, tone, fluency, and articulation."},
+      {id:4,name:"Mood",definition:"Patient's subjective emotional state."},
+      {id:5,name:"Affect",definition:"Observed emotional expression including range and congruence."},
+      {id:6,name:"Thought Process",definition:"Logicality, organization, coherence, tangentiality, flight of ideas."},
+      {id:7,name:"Thought Content",definition:"Delusions, obsessions, suicidal or homicidal ideation."},
+      {id:8,name:"Perception",definition:"Hallucinations, illusions, depersonalization, derealization."},
+      {id:9,name:"Insight",definition:"Awareness and understanding of illness."},
+      {id:10,name:"Judgment",definition:"Decision making and impulse control."},
+      {id:11,name:"Cognition",definition:"Orientation, attention, memory, language, executive function."},
+      {id:12,name:"Risk Assessment",definition:"Suicide, self-harm, violence risk, protective factors."}
+    ];
+
+    // ── Build tags ──────────────────────────────────────────────────────────
+    const rows = [
+      MSE_ITEMS.slice(0, 4),
+      MSE_ITEMS.slice(4, 8),
+      MSE_ITEMS.slice(8, 12),
+    ];
+    rows.forEach((row, ri) => {
+      const rowEl = document.getElementById(`row-${ri}`);
+      row.forEach((d, ci) => {
+        const btn = document.createElement('button');
+        btn.className = 'tag';
+        btn.textContent = d.name;
+        btn.dataset.id = d.id;
+        btn.style.animationDelay = `${ri * 0.08 + ci * 0.04}s`;
+        btn.addEventListener('click', () => selectMSEItem(d, btn));
+        rowEl.appendChild(btn);
+      });
+    });
+
+    // ── State ───────────────────────────────────────────────────────────────
+    let selectedId     = null;
+    let typewriterTimer = null;
+    let mouthTimer      = null;
+    let glowTimer       = null;
+
+    // ── DOM refs ─────────────────────────────────────────────────────────────
+    const figureWrap  = document.getElementById('figure-wrap');
+    const glowBurst   = document.getElementById('glow-burst');
+    const bubble      = document.getElementById('bubble');
+    const bubbleLabel = document.getElementById('bubble-label');
+    const bubbleText  = document.getElementById('bubble-text');
+    const hint        = document.getElementById('hint');
+    const mouth       = document.getElementById('mouth');
+    const mouthInner  = document.getElementById('mouth-inner');
+
+    // ── Figure glow on touch/click ───────────────────────────────────────────
+    function triggerGlow() {
+      figureWrap.classList.add('glowing');
+      glowBurst.classList.remove('active');
+      void glowBurst.offsetWidth; // reflow to restart animation
+      glowBurst.classList.add('active');
+      clearTimeout(glowTimer);
+      glowTimer = setTimeout(() => {
+        figureWrap.classList.remove('glowing');
+      }, 2800);
+    }
+
+    figureWrap.addEventListener('click', triggerGlow);
+    figureWrap.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      triggerGlow();
+    }, { passive: false });
+
+    // ── Mouth animation ──────────────────────────────────────────────────────
+    const MOUTH_CLOSED = "M 90 115 Q 100 120 110 115";
+    const MOUTH_OPEN   = "M 88 116 Q 100 128 112 116";
+
+    function setMouth(open) {
+      mouth.setAttribute('d', open ? MOUTH_OPEN : MOUTH_CLOSED);
+      mouth.setAttribute('fill', open ? '#7a3a2a' : 'none');
+      mouthInner.setAttribute('opacity', open ? '0.7' : '0');
+    }
+
+    function startMouth() {
+      let open = false;
+      mouthTimer = setInterval(() => {
+        open = !open;
+        setMouth(open);
+      }, 175);
+    }
+
+    function stopMouth() {
+      clearInterval(mouthTimer);
+      setMouth(false);
+    }
+
+    // ── Typewriter ───────────────────────────────────────────────────────────
+    function typewrite(text) {
+      clearInterval(typewriterTimer);
+      startMouth();
+
+      // Add cursor span
+      let cursor = document.createElement('span');
+      cursor.id = 'cursor';
+      bubbleText.textContent = '';
+      bubbleText.appendChild(cursor);
+
+      let i = 0;
+      typewriterTimer = setInterval(() => {
+        i++;
+        bubbleText.textContent = text.slice(0, i);
+        bubbleText.appendChild(cursor);
+        if (i >= text.length) {
+          clearInterval(typewriterTimer);
+          setTimeout(() => {
+            cursor.remove();
+            stopMouth();
+          }, 400);
+        }
+      }, 22);
+    }
+
+    // ── Select distortion ────────────────────────────────────────────────────
+    function selectMSEItem(d, btn) {
+      // Update selected tag styling
+      document.querySelectorAll('.tag').forEach(t => t.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedId = d.id;
+
+      // Show bubble
+      bubbleLabel.textContent = d.name;
+      bubbleText.textContent = '';
+      bubble.classList.add('visible');
+
+      // Hide hint
+      hint.classList.add('hidden');
+
+      // Typewrite definition
+      typewrite(d.definition);
+    }
+  </script>
+</body>
+</html>
